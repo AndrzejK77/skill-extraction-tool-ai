@@ -22,25 +22,25 @@ frontend/yarn-error.log*
 # BACKEND — ASP.NET Core / .NET 8
 # =============================================================================
 
-backend/**/bin/
-backend/**/obj/
+**/bin/
+**/obj/
 
 # User-specific Visual Studio files
-backend/**/*.user
-backend/**/*.suo
-backend/**/.vs/
+*.user
+*.suo
+.vs/
 
 # Rider / JetBrains
-backend/**/.idea/
+.idea/
 
 # Local secrets — keep appsettings.json (template), ignore local overrides
-backend/**/appsettings.Development.json
-backend/**/appsettings.Local.json
-backend/**/secrets.json
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
 
 # Published output
-backend/**/publish/
-backend/**/*.nupkg
+publish/
+*.nupkg
 
 # =============================================================================
 # DATABASE
