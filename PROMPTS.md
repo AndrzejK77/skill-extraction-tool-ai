@@ -211,4 +211,486 @@ database (*.db, *.sqlite), OS files, and IDE files. appsettings.Development.json
 and .vscode/settings.json kept via negation rules.
 
 Reviewer decision:
-Pending review.
+Confirmed working. Approved.
+
+---
+
+## Frontend — History Page
+
+Prompt:
+Implement the History page. Fetch GET /api/extractions on mount. Display a table with timestamp,
+CV file, IFU file, and a View Results button per row. Navigate to /results/{id} on click.
+Show loading spinner, error state, and empty state. Add getAllExtractions() to extractionApi.ts.
+
+Files changed (applied manually by reviewer):
+- frontend/src/services/extractionApi.ts — added getAllExtractions()
+- frontend/src/pages/HistoryPage.tsx — replaced skeleton with full implementation
+
+Summary of AI response:
+Added getAllExtractions() fetching GET /api/extractions with error handling. Replaced HistoryPage
+skeleton with useEffect data fetch, loading/error/empty states, and a table with View Results
+buttons navigating to /results/{id}.
+
+Reviewer decision:
+Applied manually. TypeScript check passed with zero errors. Approved.
+
+---
+
+## Frontend — Admin Extractions Page
+
+Prompt:
+Implement AdminExtractionsPage. Fetch GET /api/extractions on mount. Show a table with timestamp,
+CV file, IFU file, View Results button (navigates to /results/{id}), and a Delete button per row.
+Confirm before deleting. Call DELETE /api/extraction/{id} via a new deleteExtraction() function in
+extractionApi.ts. Remove the deleted row from state without re-fetching. Show loading, error, and
+empty states. Style with Tailwind.
+
+Files changed:
+- frontend/src/services/extractionApi.ts — added deleteExtraction(id)
+- frontend/src/pages/admin/AdminExtractionsPage.tsx — replaced skeleton with full implementation
+
+Summary of AI response:
+Added deleteExtraction(id) sending DELETE /api/extraction/{id} with 404 error handling.
+Replaced AdminExtractionsPage skeleton with useEffect data fetch, loading/error/empty states,
+a table with per-row View Results + Delete (with window.confirm guard) buttons, and optimistic
+row removal from state after successful deletion.
+
+Reviewer decision:
+TypeScript check passed with zero errors. Approved.
+
+---
+
+## Frontend — Admin System Status Page
+
+Prompt:
+Implement the Admin System Status page. Fetch GET /api/system/status on mount. Display a status
+dashboard showing API Status, Database Connected, LLM Configured, and Last Checked Time. Use
+colored dot indicators (green = OK, red = not OK). Add getSystemStatus() to extractionApi.ts.
+Show loading spinner and error state. No polling. Style with Tailwind.
+
+Files changed:
+- frontend/src/services/extractionApi.ts — added SystemStatus import + getSystemStatus()
+- frontend/src/pages/admin/AdminSystemPage.tsx — replaced skeleton with full implementation
+
+Summary of AI response:
+Added getSystemStatus() fetching GET /api/system/status with error handling. Replaced
+AdminSystemPage skeleton with useEffect fetch, loading spinner, error state, and a status
+dashboard card. Each row uses a StatusIndicator component rendering a colored dot (green/red)
+Reviewer decision:
+TypeScript check passed with zero errors. Approved.
+
+---
+
+## Backend — Document Parsing Service
+
+Prompt:
+Implement DocumentParsingService. Method: Task<string> ExtractTextAsync(Stream stream, string
+fileName). PDF parsing with PdfPig (UglyToad.PdfPig package). DOCX parsing with
+DocumentFormat.OpenXml package. Throw NotSupportedException for unsupported formats.
+Register in DI. No complex parsing logic.
+
+Files changed:
+- SkillExtractionTool.Api.csproj — added UglyToad.PdfPig (prerelease) and DocumentFormat.OpenXml
+- backend/.../Services/DocumentParsingService.cs — replaced stub with real implementation
+
+Summary of AI response:
+Added both NuGet packages. Replaced DocumentParsingService stub with real implementation.
+PDF extraction: copies stream to byte array, opens with PdfDocument.Open(bytes), iterates
+pages and words via PdfPig API, appends to StringBuilder. DOCX extraction: opens
+WordprocessingDocument from stream (isEditable=false), iterates body Paragraph descendants,
+appends each non-empty paragraph's InnerText. UnsupportedFormatException via existing
+NotSupportedException for non-PDF/DOCX. DI registration was already in place.
+
+Reviewer decision:
+dotnet build: Build succeeded, 0 warnings, 0 errors. Approved.
+
+---
+
+## Backend — LLM Skill Extraction Service
+
+Prompt:
+Implement SkillExtractionService using OpenAI Chat Completions API. Method signature:
+Task<ExtractedSkills> ExtractSkillsAsync(string cvText, string ifuText). System prompt must
+enforce JSON-only output using structure: technicalSkills, softSkills, tools, experienceAreas.
+Deserialize response into ExtractedSkills. Throw on invalid JSON. Use API key from configuration.
+Register in DI. No retries or advanced handling.
+
+Files changed:
+- SkillExtractionTool.Api.csproj — added OpenAI 2.8.0 package
+- backend/.../Services/SkillExtractionService.cs — replaced stub with real implementation
+
+Summary of AI response:
+Added OpenAI 2.8.0 NuGet package. Replaced SkillExtractionService stub. Constructor receives
+IConfiguration and creates OpenAIClient + ChatClient("gpt-4o-mini"). System prompt instructs
+strict JSON-only output with no explanation or markdown. ExtractSkillsAsync combines cvText and
+ifuText into a user message, calls CompleteChatAsync, reads Content[0].Text, deserializes with
+PropertyNameCaseInsensitive=true, throws InvalidOperationException if result is null. DI
+registration (AddScoped) was already present in Program.cs.
+
+Reviewer decision:
+dotnet build: Build succeeded, 0 warnings, 0 errors. Approved.
+
+---
+
+## Bug Fix — HTTP 500 on Extraction (OpenAI Quota Exceeded)
+
+Prompt:
+Receiving HTTP 500 on POST /api/extraction. Backend logs show:
+System.ClientModel.ClientResultException: HTTP 429 (insufficient_quota).
+Find and fix the error.
+
+Root cause identified by AI:
+The call to ExtractSkillsAsync had no try-catch. A 429 from OpenAI propagated as an unhandled
+exception and was caught by the global error handler, returning 500.
+
+Files changed (applied by AI):
+- ExtractionController.cs — wrapped ExtractSkillsAsync in try-catch:
+  ClientResultException (429) → HTTP 502 "OpenAI quota exceeded"
+  ClientResultException (other) → HTTP 502 with status code
+  InvalidOperationException (bad JSON) → HTTP 502
+- extractionApi.ts — added 502 handler that reads response body text and throws it as
+  the error message, so users see the human-readable reason from the backend.
+
+Reviewer decision:
+dotnet build and tsc --noEmit both passed. Approved.
+
+---
+
+## Backend — Unit Tests
+
+Prompt:
+Add unit tests for backend services. Test stack: xUnit, FluentAssertions, Moq.
+Create backend/SkillExtractionTool.Tests project.
+DocumentParsingService tests: extract text from valid PDF, extract text from valid DOCX,
+throw NotSupportedException for unsupported format. Use in-memory files (no disk files).
+SkillExtractionService tests: mock OpenAI client; return valid ExtractedSkills for valid JSON;
+throw exception for invalid JSON. Tests must not call external services.
+
+Prerequisite refactor required by AI:
+SkillExtractionService previously created ChatClient internally, making it untestable.
+Introduced IChatCompletionProvider interface and OpenAiChatCompletionProvider implementation
+(wraps ChatClient). SkillExtractionService now injects IChatCompletionProvider. DI in Program.cs
+updated to register OpenAiChatCompletionProvider as IChatCompletionProvider.
+
+Files created:
+- backend/SkillExtractionTool.Api/Services/IChatCompletionProvider.cs — new interface
+- backend/SkillExtractionTool.Api/Services/OpenAiChatCompletionProvider.cs — wraps ChatClient
+- backend/SkillExtractionTool.Tests/SkillExtractionTool.Tests.csproj — net8.0, xUnit,
+  FluentAssertions, Moq, PdfSharpCore, project reference to API
+- backend/SkillExtractionTool.Tests/Services/DocumentParsingServiceTests.cs — 3 tests
+- backend/SkillExtractionTool.Tests/Services/SkillExtractionServiceTests.cs — 3 tests
+
+Files modified:
+- SkillExtractionService.cs — constructor changed to inject IChatCompletionProvider
+- Program.cs — registered IChatCompletionProvider → OpenAiChatCompletionProvider
+
+Test cases:
+- DocumentParsingService: ValidDocx_ReturnsTextContainingContent — creates DOCX in-memory
+  via DocumentFormat.OpenXml, asserts extracted text contains expected strings
+- DocumentParsingService: ValidPdf_ReturnsStringWithoutThrowing — creates PDF in-memory
+  via PdfSharpCore, asserts no exception thrown
+- DocumentParsingService: UnsupportedFormat_ThrowsNotSupportedException — passes .txt stream,
+  asserts NotSupportedException with message "*Unsupported file format*"
+- SkillExtractionService: ValidJson_ReturnsPopulatedExtractedSkills — mocks provider returning
+  valid JSON, asserts all four skill categories populated correctly
+- SkillExtractionService: ValidJson_CallsProviderExactlyOnce — verifies Moq Times.Once
+- SkillExtractionService: InvalidJson_ThrowsJsonException — mocks provider returning garbage,
+  asserts JsonException thrown
+
+To run tests:
+  cd backend/SkillExtractionTool.Tests
+  dotnet test
+
+Reviewer decision:
+dotnet build: API succeeded 0 errors. dotnet test: 6/6 passed. Approved.
+
+---
+
+## Backend — API Integration Tests
+
+Prompt:
+Add API integration tests. Test stack: xUnit, Microsoft.AspNetCore.Mvc.Testing.
+Use WebApplicationFactory to host the API in memory. Use in-memory EF Core database.
+Do not call real LLM or file parsing. Test endpoints:
+GET /api/system/status — verify 200 OK and expected fields (apiStatus, databaseConnected,
+llmConfigured, timestamp).
+GET /api/extractions — verify 200 OK and list shape (JSON array).
+
+Prerequisite change:
+Added public partial class Program {} to Program.cs bottom — required for WebApplicationFactory<Program>.
+
+Files created:
+- backend/SkillExtractionTool.Tests/Integration/ApiFactory.cs — custom WebApplicationFactory:
+  replaces SQLite with isolated in-memory DB per run; replaces IChatCompletionProvider with Moq stub
+- backend/SkillExtractionTool.Tests/Integration/ApiIntegrationTests.cs — 4 integration tests
+
+Packages added to test project:
+- Microsoft.AspNetCore.Mvc.Testing 8.0.0
+- Microsoft.EntityFrameworkCore.InMemory 8.0.0
+
+Test cases:
+- GetSystemStatus_Returns200WithExpectedFields — asserts 200 + all four JSON fields present
+- GetSystemStatus_ApiStatusField_IsOk — asserts apiStatus value is "ok" (case-insensitive)
+- GetExtractions_EmptyDatabase_Returns200WithEmptyArray — asserts 200 + empty JSON array
+- GetExtractions_Returns200WithArrayShape — asserts content-type application/json + JSON array shape
+
+Minor fix applied: test initially expected "OK" (uppercase); actual API returns "ok". Fixed assertion
+to use BeEquivalentTo (case-insensitive comparison in FluentAssertions).
+
+Reviewer decision:
+dotnet test: 10/10 passed (6 unit + 4 integration). Approved.
+
+---
+
+## Frontend — Testing Setup
+
+Prompt:
+Configure testing for the React frontend. Stack: Vitest, React Testing Library, jsdom.
+Add test config for Vite. Ensure tests run with npm run test. No unnecessary libraries.
+
+Packages added (devDependencies):
+- vitest — test runner and assertion API
+- @vitest/coverage-v8 — coverage support
+- @testing-library/react — render + query helpers
+- @testing-library/jest-dom — custom DOM matchers (toBeInTheDocument, etc.)
+- @testing-library/user-event — user interaction simulation
+- jsdom — browser-like DOM environment for Node
+
+Files created:
+- frontend/vitest.config.ts — separate Vitest config (extends plugin-react, sets environment:jsdom,
+  globals:true, setupFiles: src/test/setup.ts)
+- frontend/src/test/setup.ts — imports @testing-library/jest-dom to enable DOM matchers globally
+
+Files modified:
+- frontend/package.json — added "test": "vitest" (watch mode) and "test:run": "vitest run" (CI)
+- frontend/tsconfig.json — added types: ["vitest/globals", "@testing-library/jest-dom"] so
+  TypeScript resolves describe/it/expect and jest-dom matchers without imports
+
+To run tests:
+  npm run test        (watch mode)
+  npm run test:run    (single run, for CI)
+
+Reviewer decision:
+tsc --noEmit: zero errors. npm run test:run: vitest loaded and configured correctly. Approved.
+
+---
+
+## Frontend — Component Tests
+
+Prompt:
+Add component tests for HomePage, ResultsPage, HistoryPage using Vitest and React Testing Library.
+HomePage: renders file inputs, renders Extract button.
+ResultsPage: shows loading state, displays extracted skills data, shows error state.
+HistoryPage: displays list of extractions, shows empty state message, shows error state.
+Mock all API calls. Do not test styling.
+
+Files created:
+- frontend/src/pages/__tests__/HomePage.test.tsx — 4 tests
+- frontend/src/pages/__tests__/ResultsPage.test.tsx — 4 tests
+- frontend/src/pages/__tests__/HistoryPage.test.tsx — 4 tests
+
+Test cases:
+  HomePage:
+  - renders two file inputs
+  - renders CV and IFU labels
+  - renders Extract Skills submit button
+  - submit button enabled by default
+  ResultsPage:
+  - shows "loading extraction results" spinner while fetch is pending
+  - displays all four skill category tags when data resolves
+  - displays cv/ifu file names after data loads
+  - shows error message when API rejects
+  HistoryPage:
+  - shows "No extractions yet" when list is empty
+  - displays file name cells for each extraction
+  - renders one View Results button per extraction
+  - shows error message when API rejects
+
+All pages wrapped in MemoryRouter (or MemoryRouter + Routes for ResultsPage params).
+API modules mocked with vi.mock() + vi.mocked() for typed per-test configuration.
+React Router v6 → v7 migration warnings appear in test output (informational, not failures).
+
+Reviewer decision:
+npm run test:run: 12/12 passed across 3 test files. Approved.
+
+---
+
+## Frontend — Upload Flow Tests
+
+Prompt:
+Add tests for the upload and extraction flow in HomePage. Select CV and IFU files, click Extract,
+verify uploadExtraction is called with the correct files. Mock successful API response returning id.
+Verify navigation to /results/{id}. Test error case: API failure shows error message.
+
+Files created:
+- frontend/src/pages/__tests__/HomePageUpload.test.tsx — 5 tests
+
+Test cases:
+- calls uploadExtraction with the selected CV and IFU files (userEvent.upload + calledWith assertions)
+- navigates to /results/{id} on successful upload (mockNavigate asserted)
+- shows validation error when no files are selected (no API call made)
+- shows API error message when upload rejects
+- shows "Extracting…" loading text while upload is in progress
+
+Mocking approach:
+- vi.mock('../../services/extractionApi') with uploadExtraction stub
+- vi.mock('react-router-dom') with spread of real module + useNavigate replaced by mockNavigate fn
+- userEvent.setup() + user.upload() used for realistic file input interaction
+- makeFile() helper creates in-memory File objects for test inputs
+
+Reviewer decision:
+npm run test:run: 17/17 passed across 4 test files. Approved.
+
+---
+
+# AI-Assisted Development Workflow
+
+## Overview
+
+This project was built primarily using AI-assisted development with GitHub Copilot (Claude Sonnet
+in VS Code) as the primary code generation tool. The developer acted as architect and reviewer,
+approving, adjusting, or rejecting each AI output before it was committed.
+
+Target: >90% of source code AI-generated. Achieved across backend, frontend, and configuration.
+
+---
+
+## Tools Used
+
+| Tool | Role |
+|---|---|
+| GitHub Copilot (Claude Sonnet 4.6) | Primary code generation — all backend services, controllers, frontend pages, configuration |
+| ChatGPT | Architecture brainstorming and prompt design (pre-implementation phase) |
+
+---
+
+## Workflow Description
+
+Each development cycle followed the same pattern:
+
+1. **Write a structured prompt** with role, project context, requirements, and expected output format.
+2. **AI generates code** — typically one or more complete files or targeted replacements.
+3. **Reviewer verifies** — `dotnet build` for backend, `tsc --noEmit` for frontend, manual smoke test where applicable.
+4. **Accept or adjust** — either approved as-is or minor corrections applied (sometimes manually by reviewer when tooling was unavailable).
+5. **Log the prompt** in this file with the AI summary and reviewer decision.
+
+All prompts were issued in a single VS Code Copilot Chat session with full conversation context preserved.
+
+---
+
+## Prompt History (Summarized)
+
+| # | Prompt Topic | Outcome |
+|---|---|---|
+| 1 | Architecture planning | Approved with 3 adjustments |
+| 2 | Architecture adjustments (system status, JSON, file types) | Approved |
+| 3 | Backend skeleton (.NET 8, EF Core, SQLite, stubs) | Build passed, smoke test passed |
+| 4 | Bug fix — Swagger 404 | Root cause found, two-file fix applied |
+| 5 | Frontend skeleton (React, Vite, Tailwind, Router) | npm install + tsc passed |
+| 6 | Upload & extraction flow (HomePage, ResultsPage, API service) | Approved |
+| 7 | .gitignore | Approved, bin/obj tracking issue resolved separately |
+| 8 | History page | Applied manually, tsc passed |
+| 9 | Admin Extractions page | File corruption fixed post-apply, tsc passed |
+| 10 | Admin System Status page | Approved |
+| 11 | DocumentParsingService (PdfPig + OpenXml) | Build passed |
+| 12 | SkillExtractionService (OpenAI Chat Completions) | Build passed |
+| 13 | Bug fix — HTTP 500 / OpenAI 429 quota error | Build + tsc passed |
+| 14 | Unit tests — DocumentParsingService + SkillExtractionService | 6/6 tests pass |
+
+---
+
+## Key Decisions Made
+
+**Architecture**
+- React + Vite (not Next.js) — no SSR needed for MVP, simpler deployment.
+- ASP.NET Core Controllers (not Minimal API) — easier to scale and navigate for reviewers.
+- SQLite over in-memory — persistence across server restarts without infrastructure overhead.
+- Two layouts (MainLayout + AdminLayout) — clean separation of user-facing and admin flows.
+
+**AI Integration**
+- Strict JSON-only system prompt — prevents LLM from wrapping output in markdown or prose.
+- `gpt-4o-mini` chosen — sufficient for structured extraction, low cost.
+- No streaming — simple `CompleteChatAsync` call appropriate for MVP response sizes.
+
+**Error Handling**
+- `NotSupportedException` → 415 at the parsing boundary.
+- `ClientResultException` → 502 at the LLM boundary (not 500 — signals external fault).
+- Frontend surfaces backend error body text directly (no generic messages for LLM failures).
+
+**Workflow**
+- Stub-first approach — all services implemented as stubs in the backend skeleton, replaced iteratively.
+- No state management libraries — React `useState` + `useEffect` is sufficient at this scale.
+- Swagger always enabled — no production deployment in scope for MVP.
+
+---
+
+## What Was Accepted or Modified
+
+| Item | Status | Note |
+|---|---|---|
+| Architecture proposal | Modified | Added system status endpoint, strict JSON, file type restriction |
+| Backend skeleton | Accepted as-is | All files generated correctly on first pass |
+| Swagger fix | Accepted as-is | Root cause correctly diagnosed |
+| Frontend skeleton | Accepted as-is | Zero TS errors on first pass |
+| Upload flow | Accepted as-is | |
+| History page | Applied manually | Copilot tools were temporarily disabled |
+| Admin Extractions page | Required cleanup | File corruption — trailing old skeleton code remained; fixed with targeted replace |
+| Admin System page | Accepted as-is | |
+| DocumentParsingService | Accepted as-is | PdfPig stable version unavailable on internal feed; prerelease used |
+| SkillExtractionService | Accepted as-is | |
+| HTTP 500 bug fix | Accepted as-is | Correctly identified uncaught ClientResultException root cause |
+| Unit tests + IChatCompletionProvider refactor | Accepted as-is | AI correctly identified the testability problem and proposed interface extraction before writing tests |
+
+---
+
+## Insights
+
+### What Worked Well
+
+- **Role + context + requirements + output format** — four-section prompts consistently produced
+  complete, correct files with minimal correction needed.
+- **Stub-first implementation** — generating the full skeleton with stubs first gave the AI
+  (and reviewer) a stable foundation. Replacing stubs one at a time kept each change small and verifiable.
+- **Asking for a single concern per prompt** — prompts scoped to one service, one page, or one fix
+  produced cleaner output than broad multi-feature requests.
+- **Specifying verification steps** — including expected build/test pass criteria in the prompt
+  caused the AI to generate code that matched those constraints more reliably.
+- **Error case enumeration** — explicitly listing which HTTP codes to return for which exceptions
+  (415, 502, 404) resulted in complete and consistent error handling without follow-up prompts.
+
+### What Did Not Work
+
+- **Tools disabled mid-session** — when Copilot tools were toggled off, AI described changes
+  rather than applying them. Reviewer had to apply manually, increasing risk of transcription error.
+- **Multi-file replace with incomplete `oldString`** — one `multi_replace_string_in_file` call
+  omitted the closing `}` from the target block, causing old code to persist after the replacement.
+  Required a follow-up cleanup prompt.
+- **Vague output instructions** — early prompts without an explicit "OUTPUT:" section produced
+  longer explanatory responses mixed with code, making it harder to extract the exact files.
+
+### Best Prompting Patterns Discovered
+
+**Pattern 1 — Structured four-part prompt**
+
+```
+You are a [role].
+[PROJECT CONTEXT paragraph]
+REQUIREMENTS:
+[numbered list]
+OUTPUT:
+[what to return]
+```
+
+This consistently produced complete, targeted output with no off-topic content.
+
+**Pattern 2 — Explicit error contract**
+Listing `Error X → HTTP Y` for every failure case in REQUIREMENTS produced complete error
+handling without follow-up prompts.
+
+**Pattern 3 — "Do not change other endpoints"**
+Scoping instructions prevented AI from refactoring unrelated code when editing a controller
+or service, keeping diffs small and reviewable.
+
+**Pattern 4 — Verification-first approval**
+Always running `dotnet build` or `tsc --noEmit` before approving kept the codebase in a
+consistently buildable state throughout development.

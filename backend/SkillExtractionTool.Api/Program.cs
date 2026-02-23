@@ -27,6 +27,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Application services
 builder.Services.AddScoped<IDocumentParsingService, DocumentParsingService>();
+builder.Services.AddScoped<IChatCompletionProvider, OpenAiChatCompletionProvider>();
 builder.Services.AddScoped<ISkillExtractionService, SkillExtractionService>();
 
 // CORS — allow the Vite dev server
@@ -64,3 +65,6 @@ app.UseCors("ViteDev");
 app.MapControllers();
 
 app.Run();
+
+// Required for WebApplicationFactory<Program> in integration tests.
+public partial class Program { }

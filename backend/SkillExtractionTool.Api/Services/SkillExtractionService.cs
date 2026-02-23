@@ -1,24 +1,64 @@
+using System.Text.Json;
+using OpenAI.Chat;
 using SkillExtractionTool.Api.Models;
 
 namespace SkillExtractionTool.Api.Services;
 
 /// <summary>
-/// Stub implementation — real LLM call (OpenAI) not yet implemented.
+/// Calls the OpenAI Chat Completions API to extract structured skills from CV and IFU text.
+/// Enforces strict JSON-only output via a system prompt.
+/// Depends on IChatCompletionProvider to allow unit testing without a live API key.
 /// </summary>
 public class SkillExtractionService : ISkillExtractionService
 {
-    public Task<ExtractedSkills> ExtractSkillsAsync(string cvText, string ifuText)
-    {
-        // TODO: Build strict JSON-only prompt, call OpenAI Chat Completions API,
-        // deserialize response into ExtractedSkills. Throw on malformed JSON (502).
-        var stub = new ExtractedSkills
+    private const string SystemPrompt = """
+        You are a skill extraction assistant.
+        Analyze the provided document text and extract skills.
+        You MUST respond with valid JSON only. No explanations, no markdown, no code blocks.
+        Use exactly this structure:
         {
-            TechnicalSkills = ["[STUB] C#", "[STUB] .NET"],
-            SoftSkills = ["[STUB] Communication"],
-            Tools = ["[STUB] Git"],
-            ExperienceAreas = ["[STUB] Web Development"]
+          "technicalSkills": [],
+          "softSkills": [],
+          "tools": [],
+          "experienceAreas": []
+        }
+        Fill each array with concise strings. Return empty arrays if nothing is found.
+        """;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    private readonly IChatCompletionProvider _chatProvider;
+
+    public SkillExtractionService(IChatCompletionProvider chatProvider)
+    {
+        _chatProvider = chatProvider;
+    }
+
+    public async Task<ExtractedSkills> ExtractSkillsAsync(string cvText, string ifuText)
+    {
+        var userMessage = $"""
+            CV Document:
+            {cvText}
+
+            IFU Document:
+            {ifuText}
+            """;
+
+        var messages = new List<ChatMessage>
+        {
+            new SystemChatMessage(SystemPrompt),
+            new UserChatMessage(userMessage)
         };
 
-        return Task.FromResult(stub);
+        var responseText = await _chatProvider.CompleteAsync(messages);
+
+        var skills = JsonSerializer.Deserialize<ExtractedSkills>(responseText, JsonOptions)
+            ?? throw new InvalidOperationException("OpenAI returned null or unparseable JSON.");
+
+        return skills;
     }
 }
+

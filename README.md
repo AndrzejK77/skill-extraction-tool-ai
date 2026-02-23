@@ -67,18 +67,19 @@ The application must include:
   * Main layout (user features)
   * Admin layout (management view)
 
-### Planned Pages
+### Implemented Pages
 
 **Main Area**
 
-* Home / Upload page
-* Extraction results page
-* History page (optional)
+* Home / Upload page — upload CV + IFU, trigger extraction
+* Extraction results page — view structured skill tags by category
+* History page — list all past extractions with links to results
 
 **Admin Area**
 
-* Extracted data overview
-* System status / logs (optional)
+* Dashboard — overview placeholder
+* Extractions — table with view + delete per row
+* System status — live API, database, and LLM health indicators
 
 ---
 
@@ -109,6 +110,36 @@ The application must include:
 
 ---
 
+## Prerequisites
+
+| Requirement | Version |
+|---|---|
+| [.NET SDK](https://dotnet.microsoft.com/download) | 8.0 or later |
+| [Node.js](https://nodejs.org/) | 18.0 or later |
+| OpenAI API key | Required for skill extraction |
+
+---
+
+## Configuration
+
+Before running the application, set your OpenAI API key in:
+
+```
+backend/SkillExtractionTool.Api/appsettings.json
+```
+
+```json
+{
+  "OpenAI": {
+    "ApiKey": "your-api-key-here"
+  }
+}
+```
+
+> **Note:** `appsettings.json` is committed as a config template. The API key field is intentionally empty — do not commit real keys. Use `appsettings.Development.json` (git-ignored) or an environment variable for sensitive values.
+
+---
+
 ## Architecture Overview
 
 Frontend (React SPA)
@@ -116,6 +147,101 @@ Frontend (React SPA)
 Backend (.NET API)
 → processes documents & calls LLM →
 Returns structured skill data
+
+---
+
+## Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd skill-extraction-tool-ai
+```
+
+### 2. Run the backend
+
+```bash
+cd backend/SkillExtractionTool.Api
+dotnet run
+```
+
+The API starts at **http://localhost:5000**.
+Swagger UI is available at **http://localhost:5000/swagger**.
+
+The SQLite database (`skills.db`) is created automatically on first run.
+
+### 3. Run the frontend
+
+In a separate terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The app starts at **http://localhost:5173**.
+All `/api/*` requests are proxied to `http://localhost:5000` automatically.
+
+---
+
+## Testing
+
+### Backend (xUnit)
+
+Test project: `backend/SkillExtractionTool.Tests`
+
+**Stack:** xUnit · FluentAssertions · Moq · Microsoft.AspNetCore.Mvc.Testing · EF Core InMemory
+
+**Unit tests** (`Services/`):
+| Test class | Coverage |
+|---|---|
+| `DocumentParsingServiceTests` | PDF extraction (PdfPig), DOCX extraction (OpenXml), `NotSupportedException` for unsupported formats |
+| `SkillExtractionServiceTests` | Valid JSON → populated `ExtractedSkills`, invalid JSON → `JsonException`, provider called exactly once |
+
+**Integration tests** (`Integration/`):
+
+`ApiFactory` uses `WebApplicationFactory<Program>` with:
+- SQLite replaced by an isolated EF Core in-memory database
+- `IChatCompletionProvider` replaced by a Moq stub (no real OpenAI calls)
+
+| Test | Covers |
+|---|---|
+| `GetSystemStatus_Returns200WithExpectedFields` | HTTP 200 + all four status fields present |
+| `GetSystemStatus_ApiStatusField_IsOk` | `apiStatus` value is `"ok"` |
+| `GetExtractions_EmptyDatabase_Returns200WithEmptyArray` | HTTP 200 + empty JSON array |
+| `GetExtractions_Returns200WithArrayShape` | `Content-Type: application/json` + JSON array |
+
+**Run:**
+```bash
+cd backend/SkillExtractionTool.Tests
+dotnet test
+```
+
+---
+
+### Frontend (Vitest)
+
+Test directory: `frontend/src/pages/__tests__/`
+
+**Stack:** Vitest · React Testing Library · jest-dom · userEvent · jsdom
+
+| Test file | Coverage |
+|---|---|
+| `HomePage.test.tsx` | File inputs render, labels render, Extract Skills button present and enabled |
+| `HomePageUpload.test.tsx` | Files selected → `uploadExtraction` called with correct args, navigation to `/results/{id}`, validation error when no files, API error displayed, loading state shown |
+| `ResultsPage.test.tsx` | Loading spinner shown, skill tags render after data loads, file names displayed, error state |
+| `HistoryPage.test.tsx` | Empty-state message, one row per extraction, View Results button per row, error state |
+
+All API calls are mocked with `vi.mock()`. No real network requests are made in tests.
+
+**Run:**
+```bash
+cd frontend
+npm run test:run    # single pass
+npm run test        # watch mode
+```
 
 ---
 

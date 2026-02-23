@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +55,26 @@ public class ExtractionController : ControllerBase
             return StatusCode(StatusCodes.Status415UnsupportedMediaType, ex.Message);
         }
 
-        var skills = await _skillExtractor.ExtractSkillsAsync(cvText, ifuText);
+        ExtractedSkills skills;
+        try
+        {
+            skills = await _skillExtractor.ExtractSkillsAsync(cvText, ifuText);
+        }
+        catch (ClientResultException ex) when (ex.Status == 429)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                "OpenAI quota exceeded. Add credits to your OpenAI account and try again.");
+        }
+        catch (ClientResultException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                $"OpenAI request failed (HTTP {ex.Status}). Please try again later.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status502BadGateway,
+                $"Failed to parse OpenAI response: {ex.Message}");
+        }
 
         var result = new ExtractionResult
         {
