@@ -1,0 +1,95 @@
+# =============================================================================
+# FRONTEND — Node.js / React / Vite / TypeScript
+# =============================================================================
+
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+
+# Environment files (may contain secrets)
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# =============================================================================
+# BACKEND — ASP.NET Core / .NET 8
+# =============================================================================
+
+**/bin/
+**/obj/
+
+# User-specific Visual Studio files
+*.user
+*.suo
+.vs/
+
+# Rider / JetBrains
+.idea/
+
+# Local secrets — keep appsettings.json (template), ignore local overrides
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# Published output
+publish/
+*.nupkg
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# =============================================================================
+# OS FILES
+# =============================================================================
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =============================================================================
+# IDE / EDITOR
+# =============================================================================
+
+# VS Code — ignore user-local settings, keep recommended workspace settings
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.opendb
+
+# =============================================================================
+# TEMPORARY & MISC
+# =============================================================================
+
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
