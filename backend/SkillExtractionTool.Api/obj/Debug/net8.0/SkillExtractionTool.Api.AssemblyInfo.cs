@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SkillExtractionTool.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c54ae2641042b8bafc4e1e3d5dae4c7fffee369c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b110ed22a173088ac254435447a5894f41b687d4")]
 [assembly: System.Reflection.AssemblyProductAttribute("SkillExtractionTool.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SkillExtractionTool.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

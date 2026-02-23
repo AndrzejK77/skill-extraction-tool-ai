@@ -115,4 +115,100 @@ Identified root cause, applied two-file fix, verified HTTP 200 on /swagger/index
 Reviewer decision:
 Confirmed working. Approved.
 
+---
 
+## Frontend Skeleton Implementation
+
+Prompt:
+You are a senior React developer.
+
+Implement the frontend skeleton for the Skill Extraction Tool according to the approved architecture.
+
+Tech stack: React, TypeScript, Vite, React Router v6, Tailwind CSS. No state management libraries. No UI frameworks.
+
+Requirements:
+- Vite project with Tailwind CSS configured
+- React Router v6 with two layouts: MainLayout (navbar) and AdminLayout (sidebar)
+- MainLayout wraps: /, /results/:id, /history
+- AdminLayout wraps: /admin, /admin/extractions, /admin/system
+- Pages: HomePage, ResultsPage, HistoryPage, AdminDashboardPage, AdminExtractionsPage, AdminSystemPage
+- Vite proxy: /api/* → http://localhost:5000
+- No API calls, no business logic — UI skeleton only
+
+Files created by AI:
+- frontend/package.json
+- frontend/vite.config.ts (with /api proxy to localhost:5000)
+- frontend/tsconfig.json + tsconfig.node.json
+- frontend/tailwind.config.ts + postcss.config.js
+- frontend/index.html
+- frontend/src/index.css (@tailwind directives)
+- frontend/src/main.tsx
+- frontend/src/App.tsx (BrowserRouter + Routes)
+- frontend/src/types/extraction.ts (ExtractionResult, ExtractedSkills, SystemStatus)
+- frontend/src/layouts/MainLayout.tsx
+- frontend/src/layouts/AdminLayout.tsx
+- frontend/src/pages/HomePage.tsx
+- frontend/src/pages/ResultsPage.tsx
+- frontend/src/pages/HistoryPage.tsx
+- frontend/src/pages/admin/AdminDashboardPage.tsx
+- frontend/src/pages/admin/AdminExtractionsPage.tsx
+- frontend/src/pages/admin/AdminSystemPage.tsx
+
+Summary of AI response:
+Generated full frontend skeleton. npm install succeeded (139 packages, 0 vulnerabilities).
+TypeScript check (tsc --noEmit) passed with zero errors.
+Vite dev server starts cleanly at http://localhost:5173 in 1.2s.
+
+Reviewer decision:
+Confirmed working. Approved.
+
+---
+
+## Frontend — Upload & Extraction Flow
+
+Prompt:
+You are a senior React developer.
+
+Implement the upload and extraction flow for the Skill Extraction Tool frontend.
+
+Requirements:
+- Update HomePage: file inputs for CV + IFU, Extract Skills button, loading spinner, error messages
+- POST /api/extraction via FormData on submit; redirect to /results/{id} on success
+- Handle HTTP 415 (unsupported file type) and generic errors
+- Update ResultsPage: fetch GET /api/extraction/{id} on mount, display skill tags by category
+- Create src/services/extractionApi.ts with uploadExtraction() and getExtractionById()
+
+Files changed by AI:
+- frontend/src/services/extractionApi.ts (new)
+- frontend/src/pages/HomePage.tsx (replaced skeleton with full upload form)
+- frontend/src/pages/ResultsPage.tsx (replaced skeleton with live data fetch + skill tag display)
+
+Summary of AI response:
+Created extractionApi.ts with typed fetch helpers. Replaced HomePage skeleton with a controlled
+form using FormData upload, loading spinner, and inline error display. Replaced ResultsPage with
+a useEffect data fetch, loading/error states, and a SkillSection component rendering skill tags.
+TypeScript check passed with zero errors.
+
+Reviewer decision:
+Confirmed working. Approved.
+
+---
+
+## .gitignore
+
+Prompt:
+Create a .gitignore for a full-stack project: React/Vite/TypeScript frontend + ASP.NET Core .NET 8 backend.
+Must exclude: node_modules, dist, .env files, bin/, obj/, *.db, OS files, IDE files.
+Must NOT exclude: README.md, docs/, PROMPTS.md, source code, config templates.
+
+Files created by AI:
+- .gitignore (project root)
+
+Summary of AI response:
+Created a single root-level .gitignore with clearly labelled sections for frontend, backend,
+database (*.db, *.sqlite), OS files, and IDE files. appsettings.Development.json excluded
+(may contain secrets). appsettings.json kept (serves as config template). .vscode/extensions.json
+and .vscode/settings.json kept via negation rules.
+
+Reviewer decision:
+Pending review.
